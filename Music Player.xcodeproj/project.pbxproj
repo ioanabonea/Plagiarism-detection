@@ -339,7 +339,7 @@
 				TargetAttributes = {
 					22433FD41B47212F00C075FF = {
 						CreatedOnToolsVersion = 6.3.2;
-						DevelopmentTeam = EJA9W9EPZD;
+						DevelopmentTeam = B2DJHG66FH;
 						LastSwiftMigration = 0810;
 						ProvisioningStyle = Automatic;
 					};
@@ -589,7 +589,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				DEVELOPMENT_TEAM = EJA9W9EPZD;
+				DEVELOPMENT_TEAM = B2DJHG66FH;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SDKROOT)$(SYSTEM_LIBRARY_DIR)/PrivateFrameworks",
@@ -598,7 +598,7 @@
 				INFOPLIST_FILE = "Music Player/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				LIBRARY_SEARCH_PATHS = "\"$(inherited) $(PROJECT_DIR)/build/Debug-iphoneos\"";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.samuelechu.Music-Player";
+				PRODUCT_BUNDLE_IDENTIFIER = ioanasproject;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "${SRCROOT}/bridgingHeader.h";
@@ -613,7 +613,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				DEVELOPMENT_TEAM = EJA9W9EPZD;
+				DEVELOPMENT_TEAM = B2DJHG66FH;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SDKROOT)$(SYSTEM_LIBRARY_DIR)/PrivateFrameworks",
@@ -622,7 +622,7 @@
 				INFOPLIST_FILE = "Music Player/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				LIBRARY_SEARCH_PATHS = "\"$(inherited) $(PROJECT_DIR)/build/Debug-iphoneos\"";
-				PRODUCT_BUNDLE_IDENTIFIER = "com.samuelechu.Music-Player";
+				PRODUCT_BUNDLE_IDENTIFIER = ioanasproject;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "${SRCROOT}/bridgingHeader.h";

@@ -8,6 +8,7 @@
 
 import Alamofire
 import Foundation
+import AVFoundation
 
 class CompareSongsViewController: UIViewController{
     
@@ -21,12 +22,22 @@ class CompareSongsViewController: UIViewController{
     private var mp3_1:Data?
     private var mp3_2:Data?
     
+    private var mp3_hashes_tables:[[Double:Int]] = []
+    private var mp3_hash_array:[[Double]] = []
+    
+    private var players:[AVPlayer] = []
+    
+    private var no_hashes = 0
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
         getTheMp3(firstSongURL)
-//        getTheMp3(se)
+        
+        print("second song \n")
+        
+        getTheMp3(secondSongURL)
     }
     
     override func didReceiveMemoryWarning() {
@@ -48,72 +59,63 @@ class CompareSongsViewController: UIViewController{
             
             guard let link = json["link"] as? String else { return }
             
+            self.players.append( AVPlayer(url: URL(string:link+"")! ) )
             
             Alamofire.request( link ).responseData{
                 response in
                 
                 self.mp3_1 = response.result.value
 
-                print("fft",self.tranformBytes(audioData: self.mp3_1!))
+                print("fft")
+                self.tranformBytes(audioData: self.mp3_1!)
                 print(response.result)
+                
+                self.no_hashes = self.no_hashes + 1
+                
+                if( self.no_hashes == 2 )
+                {
+                    self.findSimilar()
+                }
             }
             
         }
 
     }
     
-    
-    func readSoundFileSamples(_ filePath: String) -> Data {
-        // Get raw PCM data from the track
-        let assetURL = URL(fileURLWithPath: filePath)
-        var data = Data()
-        let sampleRate: UInt32 = 44100
-        // 16k sample/sec
-        let bitDepth: UInt16 = 16
-        // 16 bit/sample/channel
-        let channels: UInt16 = 1
-        // 2 channel/sample (stereo)
-        let opts = [String: Any]()
-        let asset = AVURLAsset(url: assetURL, options: opts)
-        let reader = try? AVAssetReader(asset: asset)
-        let settings: [String: Any] = [
-            AVFormatIDKey : Int(kAudioFormatLinearPCM),
-            AVSampleRateKey : Int(Float(sampleRate)),
-            AVLinearPCMBitDepthKey : Int(bitDepth),
-            AVLinearPCMIsNonInterleaved : Int(false),
-            AVLinearPCMIsFloatKey : Int(false),
-            AVLinearPCMIsBigEndianKey : Int(true)
-        ]
+    func findSimilar()
+    {
+        //let totalTime = self.players[0].currentItem?.duration
+        //let seekTime = CMTimeMultiplyByRatio(totalTime!, 50, 100)
+        //self.players[0].seek(to: seekTime)
+        self.players[0].play()
         
-        print(asset)
-        print(asset.tracks)
+        print("Started to find similar")
         
-        let output = AVAssetReaderTrackOutput(track: (asset.tracks[0]), outputSettings: settings)
-        reader?.add(output)
-        reader?.startReading()
-        // read the samples from the asset and append them subsequently
-        var counter = 0
-        while reader?.status != .completed {
-            counter += 1
-            //print(counter)
-            //print("status",reader?.status.rawValue)
-            let buffer: CMSampleBuffer? = output.copyNextSampleBuffer()
-            if buffer == nil {
-                continue
+        var i1:Int = 0, i2:Int = 0
+        var j1:Int = 0, j2:Int = 0
+        
+        for i in 1..<mp3_hashes_tables[0].count{
+            if let found = mp3_hashes_tables[1][ mp3_hash_array[0][i] ] {
+                for j in i+1..<mp3_hashes_tables[0].count {
+                    if let found2 = mp3_hashes_tables[1][ mp3_hash_array[0][j] ]{
+                        i1 = i
+                        j1 = found
+                        i2 = j
+                        j2 = found2
+                    }
+                }
             }
-            let blockBuffer: CMBlockBuffer = CMSampleBufferGetDataBuffer(buffer!)!
-            let size: size_t = CMBlockBufferGetDataLength(blockBuffer)
-            let outBytes = malloc(size)
-            CMBlockBufferCopyDataBytes(blockBuffer, 0, size, outBytes!)
-            CMSampleBufferInvalidate(buffer!)
-            let i8 = outBytes?.assumingMemoryBound(to: UInt8.self)
-            let i8buff = UnsafeBufferPointer(start: i8, count: size)
-            data.append(Array(i8buff), count: size)
-            free(outBytes)
         }
-        reader?.cancelReading()
-        return data
         
+        print("start1=",Float(i1)/Float(mp3_hashes_tables[0].count))
+        print("end1=",Float(i2)/Float(mp3_hashes_tables[0].count))
+        
+        print("start2=",Float(j1)/Float(mp3_hashes_tables[1].count))
+        print("end2=",Float(j2)/Float(mp3_hashes_tables[1].count))
+        
+        
+        //self.players[0].play()
+        self.players[1].play()
     }
     
     func bitReverse(_ n : Int,_ bits : Int) -> Int {
@@ -216,21 +218,20 @@ class CompareSongsViewController: UIViewController{
                 let index =  getIndex(freq)
                 highScoresAux.insert(0, at: index)
                 pointsAux.insert(0, at: index)
-                //                if freq < result[t].count && (result[t][freq].re > 0.0 && result[t][freq].im > 0.0) {
-                //                    print("im",result[t][freq].im)
-                //                    print("re",result[t][freq].re)
-                //                }
             }
             highScores.insert(highScoresAux, at: t)
             points.insert(pointsAux, at: t)
         }
+        
+        var hashTable:[Double:Int] = [:]
+        var hashArray:[Double] = []
         
         for t in 0..<result.count{
             for freq in 40..<300{
                 if result[t].count > freq {
                     let mag = log(result[t][freq].abs() + 1)
                     let index = getIndex(freq)
-                    print(mag)
+                    //print(mag)
                     if mag > highScores[t][index] {
                         highScores[t][index] = mag
                         points[t][index] = Double(freq)
@@ -238,13 +239,17 @@ class CompareSongsViewController: UIViewController{
                 }
             }
             let h : Double = hash(p1: points[t][1], p2: points[t][2], p3: points[t][3], p4: points[t][4])
-            for k in 0..<result[t].count {
-                print("time ",result[t][k].re,result[t][k].im)
-            }
-            print("hash ",h)
-            print("\n")
+            hashTable[h] = t
+            hashArray.append(h)
+            //for k in 0..<result[t].count {
+                //print("time ",result[t][k].re,result[t][k].im)
+            //}
+            //print("hash ",h)
+            //print("\n")
         }
         
+        self.mp3_hashes_tables.append( hashTable )
+        self.mp3_hash_array.append( hashArray )
     }
     
     func hash( p1 : Double, p2 : Double, p3 : Double, p4 : Double) -> Double{
