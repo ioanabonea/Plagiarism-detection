@@ -26,6 +26,7 @@ class CompareSongsViewController: UIViewController{
     private var mp3_hash_array:[[Double]] = []
     
     private var players:[AVPlayer] = []
+    private var playerSource:[String] = []
     
     private var no_hashes = 0
     
@@ -59,7 +60,7 @@ class CompareSongsViewController: UIViewController{
             
             guard let link = json["link"] as? String else { return }
             
-            self.players.append( AVPlayer(url: URL(string:link+"")! ) )
+            self.playerSource.append( link )
             
             Alamofire.request( link ).responseData{
                 response in
@@ -87,7 +88,11 @@ class CompareSongsViewController: UIViewController{
         //let totalTime = self.players[0].currentItem?.duration
         //let seekTime = CMTimeMultiplyByRatio(totalTime!, 50, 100)
         //self.players[0].seek(to: seekTime)
-        self.players[0].play()
+        print("Started to find similar")
+
+        //init av players here
+        self.players.append( AVPlayer(url: URL(string:self.playerSource[0])! ) )
+        self.players.append( AVPlayer(url: URL(string:self.playerSource[1])! ) )
         
         print("Started to find similar")
         
@@ -114,7 +119,7 @@ class CompareSongsViewController: UIViewController{
         print("end2=",Float(j2)/Float(mp3_hashes_tables[1].count))
         
         
-        //self.players[0].play()
+        self.players[0].play()
         self.players[1].play()
     }
     
