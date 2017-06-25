@@ -27,6 +27,7 @@ class CompareSongsViewController: UIViewController{
     
     private var players:[AVPlayer] = []
     private var playerSource:[String] = []
+    private var time:[Int] = []
     
     private var no_hashes = 0
     
@@ -59,6 +60,10 @@ class CompareSongsViewController: UIViewController{
             guard let json = response.result.value as? [String:Any] else { return }
             
             guard let link = json["link"] as? String else { return }
+            
+            guard let seconds = json["length"] as? String else { return }
+            
+            self.time.append( Int( seconds )! )
             
             self.playerSource.append( link )
             
@@ -112,15 +117,43 @@ class CompareSongsViewController: UIViewController{
             }
         }
         
-        print("start1=",Float(i1)/Float(mp3_hashes_tables[0].count))
-        print("end1=",Float(i2)/Float(mp3_hashes_tables[0].count))
+        let start1Proc = Float(i1)/Float(mp3_hashes_tables[0].count)
+        let end1Proc = Float(i2)/Float(mp3_hashes_tables[0].count)
         
-        print("start2=",Float(j1)/Float(mp3_hashes_tables[1].count))
-        print("end2=",Float(j2)/Float(mp3_hashes_tables[1].count))
+        let start2Proc = Float(j1)/Float(mp3_hashes_tables[1].count)
+        let end2Proc = Float(j2)/Float(mp3_hashes_tables[1].count)
         
+        print("start1=", start1Proc)
+        print("end1=", end1Proc)
+        
+        print("start2=", start2Proc)
+        print("end2=", end2Proc)
+        
+        var start1 = CMTime.init(seconds: Double(time[0]), preferredTimescale: 1000)
+        start1 = CMTimeMultiplyByRatio(start1, Int32(start1Proc*1000), 1000)
+        var end1 = CMTime.init(seconds: Double(time[0]), preferredTimescale: 1000)
+        end1 = CMTimeMultiplyByRatio(end1, Int32(end1Proc*1000), 1000)
+        
+        
+        var start2 = CMTime.init(seconds: Double(time[1]), preferredTimescale: 1000)
+        start2 = CMTimeMultiplyByRatio(start2, Int32(start2Proc*1000), 1000)
+        var end2 = CMTime.init(seconds: Double(time[1]), preferredTimescale: 1000)
+        end2 = CMTimeMultiplyByRatio(end2, Int32(end2Proc*1000), 1000)
         
         self.players[0].play()
-        self.players[1].play()
+        self.players[0].seek(to: start1)
+        
+        self.players[0].addBoundaryTimeObserver( forTimes:[NSValue.init(time:end1)], queue:nil ){
+            print("stoping first player")
+            self.players[0].pause()
+            
+            print("starting second player")
+            self.players[1].play()
+            self.players[1].seek(to: start2)
+        }
+        
+        
+        //self.players[1].play()
     }
     
     func bitReverse(_ n : Int,_ bits : Int) -> Int {
