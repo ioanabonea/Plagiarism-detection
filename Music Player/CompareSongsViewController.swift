@@ -34,10 +34,15 @@ class CompareSongsViewController: UIViewController{
     private var mp3_hash_array:[[Double]] = []
     
     private var players:[AVPlayer] = []
-    private var playerSource:[String] = []
+    private var playerSource:[URL] = []
     private var time:[Int] = []
     
     private var no_hashes = 0
+    
+    private var start1:CMTime!
+    private var end1:CMTime!
+    private var start2:CMTime!
+    private var end2:CMTime!
     
     var activityIndicator: UIActivityIndicatorView!
     
@@ -103,12 +108,16 @@ class CompareSongsViewController: UIViewController{
             
             self.time.append( Int( seconds )! )
             
-            self.playerSource.append( link )
-            
             Alamofire.request( link ).responseData{
                 response in
                 
                 self.mp3_1 = response.result.value
+                
+                let saveURL = URL(fileURLWithPath:NSTemporaryDirectory()).appendingPathComponent("\(self.no_hashes+1).mp3")
+                
+                self.playerSource.append( saveURL )
+                
+                try? response.result.value?.write(to: saveURL, options: .atomicWrite)
 
                 print("fft")
                 if self.no_hashes == 0{
@@ -137,14 +146,13 @@ class CompareSongsViewController: UIViewController{
         
         label3.text = "Checking for similarity..."
         
-        //init av players here
-        self.players.append( AVPlayer(url: URL(string:self.playerSource[0])! ) )
-        self.players.append( AVPlayer(url: URL(string:self.playerSource[1])! ) )
-        
         print("Started to find similar")
         
         var i1:Int = 0, i2:Int = 0
         var j1:Int = 0, j2:Int = 0
+        
+        var s1:Int = 0, s2:Int = 0
+        var e1:Int = 0, e2:Int = 0
         
         for i in 1..<mp3_hashes_tables[0].count{
             if let found = mp3_hashes_tables[1][ mp3_hash_array[0][i] ] {
@@ -158,16 +166,24 @@ class CompareSongsViewController: UIViewController{
                         print("i2",i2)
                         print("j1", j1)
                         print("j2", j2)
+                        if i1 < i2 && j1 < j2 {
+
+                            s1 = i1
+                            s2 = j1
+                            e1 = i2
+                            e2 = j2
+                        }
                     }
                 }
             }
         }
         
-        let start1Proc = Float(i1)/Float(mp3_hashes_tables[0].count)
-        let end1Proc = Float(i2)/Float(mp3_hashes_tables[0].count)
         
-        let start2Proc = Float(j1)/Float(mp3_hashes_tables[1].count)
-        let end2Proc = Float(j2)/Float(mp3_hashes_tables[1].count)
+        let start1Proc = Float(s1)/Float(mp3_hashes_tables[0].count)
+        let end1Proc = Float(s2)/Float(mp3_hashes_tables[0].count)
+        
+        let start2Proc = Float(e1)/Float(mp3_hashes_tables[1].count)
+        let end2Proc = Float(e2)/Float(mp3_hashes_tables[1].count)
         
         print("start1=", start1Proc)
         print("end1=", end1Proc)
@@ -178,42 +194,54 @@ class CompareSongsViewController: UIViewController{
         activityIndicator.stopAnimating()
         activityIndicator.removeFromSuperview()
         
-        var start1 = CMTime.init(seconds: Double(time[0]), preferredTimescale: 1000)
+        self.start1 = CMTime.init(seconds: Double(time[0]), preferredTimescale: 1000)
         start1 = CMTimeMultiplyByRatio(start1, Int32(start1Proc*1000), 1000)
-        var end1 = CMTime.init(seconds: Double(time[0]), preferredTimescale: 1000)
+        self.end1 = CMTime.init(seconds: Double(time[0]), preferredTimescale: 1000)
         end1 = CMTimeMultiplyByRatio(end1, Int32(end1Proc*1000), 1000)
         
         
-        var start2 = CMTime.init(seconds: Double(time[1]), preferredTimescale: 1000)
+        self.start2 = CMTime.init(seconds: Double(time[1]), preferredTimescale: 1000)
         start2 = CMTimeMultiplyByRatio(start2, Int32(start2Proc*1000), 1000)
-        var end2 = CMTime.init(seconds: Double(time[1]), preferredTimescale: 1000)
+        self.end2 = CMTime.init(seconds: Double(time[1]), preferredTimescale: 1000)
         end2 = CMTimeMultiplyByRatio(end2, Int32(end2Proc*1000), 1000)
         
+        //init av players here
+        self.players.append( AVPlayer(url: self.playerSource[0] ) )
+        self.players.append( AVPlayer(url: self.playerSource[1] ) )
+        
+        self.players[0].currentItem?.addObserver(self, forKeyPath: "status", options: [.new, .old], context: nil)
+        
+        
+        //self.players[1].play()
+    }
+    
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        guard let playerItem = object as? AVPlayerItem else { return }
+        
+        guard keyPath == "status" else { return }
+        
+        print( "=====")
+        print( playerItem.status == .readyToPlay ) //true
+        print( playerItem.error ) //nil
+        print( "=====")
+        
         self.players[0].play()
-        self.players[0].seek(to: start1)
+        self.players[0].seek(to: self.start1, toleranceBefore: kCMTimeZero, toleranceAfter:kCMTimeZero)
         
-        self.label4.text = "Starting playing first song at \(start1Proc)"
-        self.players[0].addBoundaryTimeObserver( forTimes:[NSValue.init(time:end1)], queue:nil ){
+        self.players[0].addBoundaryTimeObserver( forTimes:[NSValue.init(time:self.end1)], queue:nil ){
             print("stoping first player")
-            self.label4.text = "Stopped first song at \(end1Proc)"
             self.players[0].pause()
-        
             
             print("starting second player")
             self.players[1].play()
-            self.players[1].seek(to: start2)
-            print("starting second player")
-            self.label5.text = "Starting playing second song at \(start2Proc)"
-
-            self.players[1].addBoundaryTimeObserver( forTimes:[NSValue.init(time:end2)], queue:nil ){
+            self.players[1].seek(to: self.start2)
+            
+            self.players[1].addBoundaryTimeObserver( forTimes:[NSValue.init(time:self.end2)], queue:nil ){
                 print("stoping second player")
-                self.label5.text = "Stopped second song at \(end2Proc)"
                 self.players[1].pause()
             }
         }
         
-        
-        //self.players[1].play()
     }
     
     func bitReverse(_ n : Int,_ bits : Int) -> Int {
