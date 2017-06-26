@@ -12,6 +12,14 @@ import AVFoundation
 
 class CompareSongsViewController: UIViewController{
     
+    @IBOutlet weak var label1: UILabel!
+    @IBOutlet weak var label2: UILabel!
+    @IBOutlet weak var label3: UILabel!
+    @IBOutlet weak var label4: UILabel!
+    @IBOutlet weak var label5: UILabel!
+    
+    
+    
     var firstSongURL: String!
     var secondSongURL: String!
     
@@ -31,15 +39,27 @@ class CompareSongsViewController: UIViewController{
     
     private var no_hashes = 0
     
+    var activityIndicator: UIActivityIndicatorView!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
+        
+        activityIndicator = UIActivityIndicatorView(activityIndicatorStyle: UIActivityIndicatorViewStyle.whiteLarge)
+        activityIndicator.color = UIColor.purple
+        activityIndicator.frame = CGRect(x: 0.0, y: 0.0, width: 40.0, height: 40.0)
+        activityIndicator.center = view.center
+        activityIndicator.startAnimating()
+        view.addSubview(activityIndicator)
+        UIApplication.shared.isNetworkActivityIndicatorVisible = true
+        
+        self.view.isUserInteractionEnabled = false
+
         
         getTheMp3(firstSongURL)
         
         print("second song \n")
         
-        getTheMp3(secondSongURL)
     }
     
     override func didReceiveMemoryWarning() {
@@ -47,8 +67,26 @@ class CompareSongsViewController: UIViewController{
         // Dispose of any resources that can be recreated.
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        self.mp3_hashes_tables = []
+        self.mp3_hash_array = []
+        
+        self.players = []
+        self.playerSource = []
+        self.time = []
+        
+        self.no_hashes = 0
+    }
+    
     func getTheMp3(_ urlField: String) {
         print(urlField)
+        
+        if self.no_hashes == 0{
+            self.label1.text = "Getting first song..."
+        }else{
+            self.label2.text = "Getting second song..."
+        }
         
         let url = urlField
         
@@ -73,15 +111,15 @@ class CompareSongsViewController: UIViewController{
                 self.mp3_1 = response.result.value
 
                 print("fft")
+                if self.no_hashes == 0{
+                    self.label1.text = "Applying FFT algorithm to first song..."
+                }else{
+                    self.label2.text = "Applying FFT algorithm to second song..."
+                }
                 self.tranformBytes(audioData: self.mp3_1!)
                 print(response.result)
                 
-                self.no_hashes = self.no_hashes + 1
-                
-                if( self.no_hashes == 2 )
-                {
-                    self.findSimilar()
-                }
+               
             }
             
         }
@@ -94,7 +132,11 @@ class CompareSongsViewController: UIViewController{
         //let seekTime = CMTimeMultiplyByRatio(totalTime!, 50, 100)
         //self.players[0].seek(to: seekTime)
         print("Started to find similar")
+        self.view.isUserInteractionEnabled = true
 
+        
+        label3.text = "Checking for similarity..."
+        
         //init av players here
         self.players.append( AVPlayer(url: URL(string:self.playerSource[0])! ) )
         self.players.append( AVPlayer(url: URL(string:self.playerSource[1])! ) )
@@ -112,6 +154,10 @@ class CompareSongsViewController: UIViewController{
                         j1 = found
                         i2 = j
                         j2 = found2
+                        print("i1",i1)
+                        print("i2",i2)
+                        print("j1", j1)
+                        print("j2", j2)
                     }
                 }
             }
@@ -129,6 +175,9 @@ class CompareSongsViewController: UIViewController{
         print("start2=", start2Proc)
         print("end2=", end2Proc)
         
+        activityIndicator.stopAnimating()
+        activityIndicator.removeFromSuperview()
+        
         var start1 = CMTime.init(seconds: Double(time[0]), preferredTimescale: 1000)
         start1 = CMTimeMultiplyByRatio(start1, Int32(start1Proc*1000), 1000)
         var end1 = CMTime.init(seconds: Double(time[0]), preferredTimescale: 1000)
@@ -143,13 +192,24 @@ class CompareSongsViewController: UIViewController{
         self.players[0].play()
         self.players[0].seek(to: start1)
         
+        self.label4.text = "Starting playing first song at \(start1Proc)"
         self.players[0].addBoundaryTimeObserver( forTimes:[NSValue.init(time:end1)], queue:nil ){
             print("stoping first player")
+            self.label4.text = "Stopped first song at \(end1Proc)"
             self.players[0].pause()
+        
             
             print("starting second player")
             self.players[1].play()
             self.players[1].seek(to: start2)
+            print("starting second player")
+            self.label5.text = "Starting playing second song at \(start2Proc)"
+
+            self.players[1].addBoundaryTimeObserver( forTimes:[NSValue.init(time:end2)], queue:nil ){
+                print("stoping second player")
+                self.label5.text = "Stopped second song at \(end2Proc)"
+                self.players[1].pause()
+            }
         }
         
         
@@ -288,6 +348,17 @@ class CompareSongsViewController: UIViewController{
         
         self.mp3_hashes_tables.append( hashTable )
         self.mp3_hash_array.append( hashArray )
+        
+        self.no_hashes = self.no_hashes + 1
+        
+        if( self.no_hashes == 2 )
+        {
+            label2.text = "Finished FFT transformation for second song!"
+            self.findSimilar()
+        }else{
+            label1.text = "Finished FFT transformation for first song!"
+            self.getTheMp3(self.secondSongURL)
+        }
     }
     
     func hash( p1 : Double, p2 : Double, p3 : Double, p4 : Double) -> Double{
@@ -302,7 +373,12 @@ class CompareSongsViewController: UIViewController{
     }
     
     @IBAction func backAction(_ sender: Any){
-        let _ = self.navigationController?.popViewController(animated: true)
+        if self.players.count == 2{
+            self.players[0].pause()
+            self.players[1].pause()
+        }
+        
+        let _ = self.dismiss(animated: true, completion: nil)
     }
     
 }
