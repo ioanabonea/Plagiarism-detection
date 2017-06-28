@@ -58,6 +58,9 @@ class Playlist: UITableViewController, UISearchResultsUpdating, PlaylistDelegate
     var firstSongURL: String!
     var secondSongURL: String!
     
+    var firstSongIdentifier: String!
+    var secondSongIdentifier: String!
+    
     var playlistName: String?
     var playlistVCDelegate : PlaylistViewControllerDelegate!
     
@@ -316,6 +319,9 @@ class Playlist: UITableViewController, UISearchResultsUpdating, PlaylistDelegate
             
             let firstSongIdentifier = (songs[firstObjectRow] as AnyObject).value(forKey: "identifier") as! String
             let secondSongIdentifier = (songs[secondObjectRow] as AnyObject).value(forKey: "identifier") as! String
+            
+            self.firstSongIdentifier = firstSongIdentifier
+            self.secondSongIdentifier = secondSongIdentifier
             
             let firstSongUrl = "https://www.youtubeinmp3.com/fetch/?format=JSON&video=https://www.youtube.com/watch?v=\(firstSongIdentifier)"
             let secondSongUrl = "https://www.youtubeinmp3.com/fetch/?format=JSON&video=https://www.youtube.com/watch?v=\(secondSongIdentifier)"
@@ -838,6 +844,8 @@ class Playlist: UITableViewController, UISearchResultsUpdating, PlaylistDelegate
             let destinationViewController = segue.destination as! CompareSongsViewController
             destinationViewController.firstSongURL = self.firstSongURL
             destinationViewController.secondSongURL = self.secondSongURL
+            destinationViewController.firstSongIdentifier = self.firstSongIdentifier
+            destinationViewController.secondSongIdentifier = self.secondSongIdentifier
         }
     }
 }

@@ -9,20 +9,18 @@
 import Alamofire
 import Foundation
 import AVFoundation
+import YouTubePlayer
 
-class CompareSongsViewController: UIViewController{
+class CompareSongsViewController: UIViewController, YouTubePlayerDelegate{
     
-    @IBOutlet weak var label1: UILabel!
-    @IBOutlet weak var label2: UILabel!
-    @IBOutlet weak var label3: UILabel!
-    @IBOutlet weak var label4: UILabel!
-    @IBOutlet weak var label5: UILabel!
-    
-    
+
+    @IBOutlet weak var player1ContainerView: UIView!
     
     var firstSongURL: String!
     var secondSongURL: String!
     
+    var firstSongIdentifier: String!
+    var secondSongIdentifier: String!
     
     let Range = [40,80,120,180,300]
     let fuzz_factor : Double = 2
@@ -45,17 +43,30 @@ class CompareSongsViewController: UIViewController{
     private var end2:CMTime!
     
     var activityIndicator: UIActivityIndicatorView!
+    var alphaView: UIView!
+    
+    var start1Proc: Float!
+    var start2Proc: Float!
+    var end1Proc: Float!
+    var end2Proc: Float!
+    
+    var player1ContainerViewController: CompareSongsPlayer!
+    var player2ContainerViewController: CompareSongsPlayer!
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
+        alphaView = UIView(frame: self.view.frame)
+        alphaView.backgroundColor = UIColor.white
+        alphaView.alpha = 0.8
+        self.view.addSubview(alphaView)
         activityIndicator = UIActivityIndicatorView(activityIndicatorStyle: UIActivityIndicatorViewStyle.whiteLarge)
         activityIndicator.color = UIColor.purple
         activityIndicator.frame = CGRect(x: 0.0, y: 0.0, width: 40.0, height: 40.0)
         activityIndicator.center = view.center
         activityIndicator.startAnimating()
-        view.addSubview(activityIndicator)
+        alphaView.addSubview(activityIndicator)
         UIApplication.shared.isNetworkActivityIndicatorVisible = true
         
         self.view.isUserInteractionEnabled = false
@@ -87,11 +98,11 @@ class CompareSongsViewController: UIViewController{
     func getTheMp3(_ urlField: String) {
         print(urlField)
         
-        if self.no_hashes == 0{
-            self.label1.text = "Getting first song..."
-        }else{
-            self.label2.text = "Getting second song..."
-        }
+//        if self.no_hashes == 0{
+//            self.label1.text = "Getting first song..."
+//        }else{
+//            self.label2.text = "Getting second song..."
+//        }
         
         let url = urlField
         
@@ -120,11 +131,11 @@ class CompareSongsViewController: UIViewController{
                 try? response.result.value?.write(to: saveURL, options: .atomicWrite)
 
                 print("fft")
-                if self.no_hashes == 0{
-                    self.label1.text = "Applying FFT algorithm to first song..."
-                }else{
-                    self.label2.text = "Applying FFT algorithm to second song..."
-                }
+//                if self.no_hashes == 0{
+//                    self.label1.text = "Applying FFT algorithm to first song..."
+//                }else{
+//                    self.label2.text = "Applying FFT algorithm to second song..."
+//                }
                 self.tranformBytes(audioData: self.mp3_1!)
                 print(response.result)
                 
@@ -144,7 +155,7 @@ class CompareSongsViewController: UIViewController{
         self.view.isUserInteractionEnabled = true
 
         
-        label3.text = "Checking for similarity..."
+//        label3.text = "Checking for similarity..."
         
         print("Started to find similar")
         
@@ -179,11 +190,11 @@ class CompareSongsViewController: UIViewController{
         }
         
         
-        let start1Proc = Float(s1)/Float(mp3_hashes_tables[0].count)
-        let end1Proc = Float(s2)/Float(mp3_hashes_tables[0].count)
+        start1Proc = Float(s1)/Float(mp3_hashes_tables[0].count)
+        end1Proc = Float(s2)/Float(mp3_hashes_tables[0].count)
         
-        let start2Proc = Float(e1)/Float(mp3_hashes_tables[1].count)
-        let end2Proc = Float(e2)/Float(mp3_hashes_tables[1].count)
+        start2Proc = Float(e1)/Float(mp3_hashes_tables[1].count)
+        end2Proc = Float(e2)/Float(mp3_hashes_tables[1].count)
         
         print("start1=", start1Proc)
         print("end1=", end1Proc)
@@ -193,6 +204,7 @@ class CompareSongsViewController: UIViewController{
         
         activityIndicator.stopAnimating()
         activityIndicator.removeFromSuperview()
+        alphaView.removeFromSuperview()
         
         self.start1 = CMTime.init(seconds: Double(time[0]), preferredTimescale: 1000)
         start1 = CMTimeMultiplyByRatio(start1, Int32(start1Proc*1000), 1000)
@@ -205,44 +217,50 @@ class CompareSongsViewController: UIViewController{
         self.end2 = CMTime.init(seconds: Double(time[1]), preferredTimescale: 1000)
         end2 = CMTimeMultiplyByRatio(end2, Int32(end2Proc*1000), 1000)
         
-        //init av players here
-        self.players.append( AVPlayer(url: self.playerSource[0] ) )
-        self.players.append( AVPlayer(url: self.playerSource[1] ) )
+        self.player1ContainerViewController.start = start1
+        self.player1ContainerViewController.end = end1
         
-        self.players[0].currentItem?.addObserver(self, forKeyPath: "status", options: [.new, .old], context: nil)
+        self.player2ContainerViewController.start = start2
+        self.player2ContainerViewController.end = end2
         
+        self.player1ContainerViewController.seekToTime()
+        self.player2ContainerViewController.seekToTime()
         
-        //self.players[1].play()
     }
     
-    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
-        guard let playerItem = object as? AVPlayerItem else { return }
-        
-        guard keyPath == "status" else { return }
-        
-        print( "=====")
-        print( playerItem.status == .readyToPlay ) //true
-        print( playerItem.error ) //nil
-        print( "=====")
-        
-        self.players[0].play()
-        self.players[0].seek(to: self.start1, toleranceBefore: kCMTimeZero, toleranceAfter:kCMTimeZero)
-        
-        self.players[0].addBoundaryTimeObserver( forTimes:[NSValue.init(time:self.end1)], queue:nil ){
-            print("stoping first player")
-            self.players[0].pause()
-            
-            print("starting second player")
-            self.players[1].play()
-            self.players[1].seek(to: self.start2)
-            
-            self.players[1].addBoundaryTimeObserver( forTimes:[NSValue.init(time:self.end2)], queue:nil ){
-                print("stoping second player")
-                self.players[1].pause()
-            }
-        }
-        
-    }
+    
+    
+
+
+    
+//    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+//        guard let playerItem = object as? AVPlayerItem else { return }
+//        
+//        guard keyPath == "status" else { return }
+//        
+//        print( "=====")
+//        print( playerItem.status == .readyToPlay ) //true
+//        print( playerItem.error ) //nil
+//        print( "=====")
+//        
+//        self.players[0].play()
+//        self.players[0].seek(to: self.start1, toleranceBefore: kCMTimeZero, toleranceAfter:kCMTimeZero)
+//        
+//        self.players[0].addBoundaryTimeObserver( forTimes:[NSValue.init(time:self.end1)], queue:nil ){
+//            print("stoping first player")
+//            self.players[0].pause()
+//            
+//            print("starting second player")
+//            self.players[1].play()
+//            self.players[1].seek(to: self.start2)
+//            
+//            self.players[1].addBoundaryTimeObserver( forTimes:[NSValue.init(time:self.end2)], queue:nil ){
+//                print("stoping second player")
+//                self.players[1].pause()
+//            }
+//        }
+//        
+//    }
     
     func bitReverse(_ n : Int,_ bits : Int) -> Int {
         
@@ -381,10 +399,10 @@ class CompareSongsViewController: UIViewController{
         
         if( self.no_hashes == 2 )
         {
-            label2.text = "Finished FFT transformation for second song!"
+//            label2.text = "Finished FFT transformation for second song!"
             self.findSimilar()
         }else{
-            label1.text = "Finished FFT transformation for first song!"
+//            label1.text = "Finished FFT transformation for first song!"
             self.getTheMp3(self.secondSongURL)
         }
     }
@@ -407,6 +425,28 @@ class CompareSongsViewController: UIViewController{
         }
         
         let _ = self.dismiss(animated: true, completion: nil)
+    }
+    
+    
+    @IBAction func playFirstVideoAction(_ sender: Any) {
+        self.player1ContainerViewController.seekToTime()
+        self.player1ContainerViewController.play()
+    }
+    
+    @IBAction func playSecondVideoAction(_ sender: Any) {
+        self.player2ContainerViewController.seekToTime()
+        self.player2ContainerViewController.play()
+    }
+    
+    
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == "player1", let destinationViewController = segue.destination as? CompareSongsPlayer{
+            destinationViewController.songIdentifier = firstSongIdentifier
+            self.player1ContainerViewController = destinationViewController
+        }else if segue.identifier == "player2", let destinationViewController = segue.destination as? CompareSongsPlayer{
+            destinationViewController.songIdentifier = secondSongIdentifier
+            self.player2ContainerViewController = destinationViewController
+        }
     }
     
 }
